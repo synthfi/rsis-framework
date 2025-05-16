@@ -1,0 +1,13 @@
+[package]
+name = "rsis-generate"
+version = "0.1.0"
+edition = "2024"
+description = "generates block interfaces"
+
+[dependencies]
+clap = { version = "4.5.38", features = ["derive"] }
+minijinja = "2.10.2"
+nalgebra = "0.33.2"
+rsis_block = { path="../block" }
+serde = { version = "1.0.219", features = ["derive"] }
+toml = "0.8.22"

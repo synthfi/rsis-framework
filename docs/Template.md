@@ -5,7 +5,9 @@ A template is a kind of block that is generic, allowing itself to be generated f
 An example is provided for the delay block, which implements two kinds of generics, type and size.
 
 ```toml
-type = "template"
+[template]
+name = "<name>"
+desc = "<description>"
 
 # `value` is used for the default when there is no known selection
 [generic]

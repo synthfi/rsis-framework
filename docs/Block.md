@@ -22,32 +22,37 @@ type = "block"
 # 
 [types.motor]
 desc = "motor inputs"
-[types.motor.fields]
-in = {struct="motor_in"}
-out = {struct="motor_out"}
-data = {struct="motor_data"}
-param = {struct="motor_param"}
+fields = [
+   {name="in", type="motor_in", tag="in"}
+   {name="out", type="motor_out", tag="out"}
+   {name="data", type="motor_data", tag="data"}
+   {name="param", type="motor_param", tag="params"}
+]
 
 [types.motor_in]
 desc = "motor model's inputs"
-[types.motor_in.fields]
-power = {type="f32", dims=[], unit="W", desc="Motor input wattage"}
+fields = [
+   { name="power", type="f32", dims=[], unit="W", desc="Motor input wattage"}
+]
 
 [types.motor_out]
 desc = "motor model's outputs"
-[types.motor_out.fields]
-speed = {type="f32", dims=[], unit="rad/s", desc="output axle rotational speed"}
-torque = {type="f32", dims=[], unit="N/m", desc="output torque"}
+fields = [
+   {name="speed", type="f32", dims=[], unit="rad/s", desc="output axle rotational speed"}
+   {name="torque", type="f32", dims=[], unit="N/m", desc="output torque"}
+]
 
 [types.motor_data]
 desc = "internal motor simulated data"
-[types.motor_data.fields]
-temp = {type="f32", dims=[], unit="K", desc="internal temperature"}
+fields = [
+   {name="temp", type="f32", dims=[], unit="K", desc="internal temperature"}
+]
 
 [types.motor_param]
 desc = "motor parameters"
-[types.motor_param.fields]
-efficiency = {type="f32", dims=[], default = 0.75, desc="how efficient the motor is"}
+fields = [
+   {name="efficiency", type="f32", dims=[], default = 0.75, desc="how efficient the motor is"}
+]
 ```
 
 ## Save & Load
