@@ -1,0 +1,39 @@
+
+[model]
+name = "BasicModel"
+desc = "simulated sensor, meant to demonstrate RSIS's features"
+
+[types.BasicModel]
+desc = "basic model interface"
+fields = [
+    {name="input", type="BasicModelIn", tag="in"},
+    {name="output", type="BasicModelOut", tag="out"},
+    {name="data", type="BasicModelData", tag="data"},
+    {name="params", type="BasicModelParams", tag="params"},
+]
+
+[types.BasicModelIn]
+desc = "basic model inputs"
+fields = [
+    {name="mode", type="i32", default=0, desc="desired input mode"},
+    {name="voltages", type="f64", dims=[2], default=[0.0,0.0], desc="signal that is checked against limits"},
+    {name="endsim", type="bool", default=false, desc="set to true to trigger the simulation to end"},
+]
+
+[types.BasicModelOut]
+desc = "basic model outputs"
+fields = [
+    {name="signal", type="f64", default=0.0, desc="some output of the sensor"}
+]
+
+[types.BasicModelData]
+desc = "sensor internal state"
+fields = [
+    {name="message", type="String", default="message about the sensor's internal state"},
+]
+
+[types.BasicModelParams]
+desc = "sensor parameters"
+fields = [
+    {name="limits", type="f64", dims=[2,2], default=[[0.0, 1.0], [0.0, 1.0]], desc="[low, high] voltage limits for each voltage"}
+]
