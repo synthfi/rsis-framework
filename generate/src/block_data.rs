@@ -4,16 +4,20 @@ use toml::Table;
 
 #[derive(Default, Serialize)]
 pub struct FieldData {
-    name: String,
-    datatype: String,
-    dims: Vec<i64>,
-    unit: String,
-    desc: String,
-    tag: String,
+    pub name: String,
+    pub datatype: String,
+    pub collection: Vec<String>,
+    pub generics: Vec<String>,
+    pub dims: Vec<i64>,
+    pub unit: String,
+    pub desc: String,
+    pub tag: String,
 
-    is_primitive: bool,
-    is_struct: bool,
-    is_scalar: bool,
+    pub is_primitive: bool,
+    pub is_struct: bool,
+    pub is_scalar: bool,
+    pub is_collection: bool,
+    pub is_generic: bool,
 }
 
 impl FieldData {
@@ -27,51 +31,54 @@ pub struct BlockData {
     pub name: String,
     pub desc: String,
     pub fields: Vec<FieldData>,
+
+    pub gen_types: Vec<String>,
+    pub is_generic: bool,
 }
 
 #[derive(Serialize)]
 pub struct TypeInfo {
     pub interface: String,
     pub structs: HashMap<String, BlockData>,
+    pub is_template: bool,
 }
 
 /// Parses the interface TOML file and returns the
 /// resulting data.
 ///
-pub fn parse_interface(data: &Table, verbose: bool) -> Result<TypeInfo, String> {
-    if !data.contains_key("model") {
-        return Err("[model] does not exist".to_string());
+pub fn parse_interface<F>(data: &Table, verbose: bool, cb_inc: &mut F) -> Result<TypeInfo, String>
+    where F: FnMut(&FieldData)
+{
+    let mut block_desc = "".to_string();
+    let mut block_type : &str = "";
+    if data.contains_key("model") {
+        block_type = "model";
+    } else if data.contains_key("template") {
+        block_type = "template";
     }
-    let model_data = match data["model"].as_table() {
+    let block_data = match data[block_type].as_table() {
         Some(v) => v,
-        None => {
-            return Err("[model] is not a table".to_string());
-        }
+        None => return Err(format!("[{}] is not a table", block_type)),
     };
-    if !model_data.contains_key("name") {
-        return Err("Model table does not contain [name]".to_string());
+    if !block_data.contains_key("name") {
+        return Err(format!("{} table does not contain [name]", block_type));
     }
-    let model_name = match model_data["name"].as_str() {
-        Some(v) => v,
-        None => {
-            return Err("[model.name] is not a string".to_string());
-        }
+    let block_name = match block_data["name"].as_str() {
+        Some(v) => v.to_string(),
+        None => return Err(format!("[{}.name] is not a string", block_type)),
     };
-    let model_desc = if model_data.contains_key("desc") {
-        match model_data["desc"].as_str() {
-            Some(v) => v,
-            None => {
-                return Err("[model.desc] is not a string".to_string());
-            }
+    if block_data.contains_key("desc") {
+        block_desc = match block_data["desc"].as_str() {
+            Some(v) => v.to_string(),
+            None => return Err(format!("[{}.desc] is not a string", block_type)),
         }
-    } else {
-        ""
-    };
+    }
 
     // construct the type database
     let mut db = TypeInfo {
-        interface: model_name.to_string(),
+        interface: block_name,
         structs: HashMap::new(),
+        is_template: data.contains_key("template"),
     };
     // parse all described types
     if !data.contains_key("types") {
@@ -79,15 +86,11 @@ pub fn parse_interface(data: &Table, verbose: bool) -> Result<TypeInfo, String> 
     }
     let type_info = match data["types"].as_table() {
         Some(v) => v,
-        None => {
-            return Err("[types] is not a table".to_string());
-        }
+        None => return Err("[types] is not a table".to_string()),
     };
-    match parse_types(type_info, &mut db, verbose) {
+    match parse_types(type_info, &mut db, cb_inc, verbose) {
         Ok(()) => {},
-        Err(e) => {
-            return Err(e);
-        }
+        Err(e) => return Err(e),
     }
 
     // TODO validate no struct definitions are missing
@@ -96,27 +99,27 @@ pub fn parse_interface(data: &Table, verbose: bool) -> Result<TypeInfo, String> 
 
 /// parse all structs from the [types] table.
 /// does not validate that all referenced types exist.
-fn parse_types(data: &Table, db: &mut TypeInfo, verbose: bool) -> Result<(), String> {
+fn parse_types<F>(data: &Table, db: &mut TypeInfo, cb_inc: &mut F, verbose: bool) -> Result<(), String>
+    where F: FnMut(&FieldData)
+{
     for (k, v) in data {
         let vtable = match v.as_table() {
             Some(val) => val,
-            None => {
-                return Err(format!("{} is not a table", k));
-            }
+            None => return Err(format!("{} is not a table", k)),
         };
-        match parse_type(k, vtable, verbose) {
+        match parse_type(k, vtable, cb_inc, verbose) {
             Ok(bval) => {
                 db.structs.insert(k.to_string(), bval);
             },
-            Err(e) => {
-                return Err(e);
-            }
+            Err(e) => return Err(e),
         }
     }
     Ok(())
 }
 
-fn parse_type(name: &String, data: &Table, verbose: bool) -> Result<BlockData, String> {
+fn parse_type<F>(name: &String, data: &Table, cb_inc: &mut F, verbose: bool) -> Result<BlockData, String>
+    where F: FnMut(&FieldData)
+{
     let mut block = BlockData::default();
     block.name = name.to_string();
     if data.contains_key("desc") {
@@ -124,33 +127,49 @@ fn parse_type(name: &String, data: &Table, verbose: bool) -> Result<BlockData, S
             Some(v) => {
                 block.desc = v.to_string();
             },
-            None => {
-                return Err(format!("[{}.desc] is not a string", name));
-            }
+            None => return Err(format!("[{}.desc] is not a string", name)),
         }
     }
+    // template data
+    if data.contains_key("generic") {
+        let args = match data["generic"].as_table() {
+            Some(v) => v,
+            None => return Err(format!("[{}.generic] is not a table", name)),
+        };
+        for (k,v) in args.iter() {
+            let tdata = match v.as_table() {
+                Some(v) => v,
+                None => return Err(format!("[{}.generic.{}] is not a table", name, k)),
+            };
+            if !tdata.contains_key("options") {
+                return Err(format!("[{}.generic.{}] is missing `options` field", name, k));
+            }
+            match tdata["options"].as_array() {
+                Some(v) => {},
+                None => return Err(format!("[{}.generic.{}.options] is not an array", name, k)),
+            }
+            block.gen_types.push(k.to_string());
+        }
+        block.is_generic = true;
+    }
+    // field parsing
     if data.contains_key("fields") {
         let fields = match data["fields"].as_array() {
             Some(v) => v,
-            None => {
-                return Err(format!("[{}.fields] is not an array", name));
-            }
+            None => return Err(format!("[{}.fields] is not an array", name)),
         };
         for (i, field) in fields.iter().enumerate() {
             let ftable = match field.as_table() {
                 Some(v) => v,
-                None => {
-                    return Err(format!("[{}.fields][{}] is not a table", name, i));
-                }
+                None => return Err(format!("[{}.fields][{}] is not a table", name, i)),
             };
 
             match parse_field(ftable) {
                 Ok(v) => {
+                    cb_inc(&v);
                     block.fields.push(v);
                 },
-                Err(e) => {
-                    return Err(e);
-                }
+                Err(e) => return Err(e),
             }
         }
     }
@@ -168,34 +187,26 @@ fn parse_field(data: &Table) -> Result<FieldData, String> {
     }
     fdata.name = match data["name"].as_str() {
         Some(v) => v.to_string(),
-        None => {
-            return Err("[name] in field is not a string".to_string());
-        }
+        None => return Err("[name] in field is not a string".to_string()),
     };
     if !data.contains_key("type") {
         return Err("[type] not found in field".to_string());
     }
     fdata.datatype = match data["type"].as_str() {
         Some(v) => v.to_string(),
-        None => {
-            return Err("[type] in field is not a string".to_string());
-        }
+        None => return Err("[type] in field is not a string".to_string()),
     };
     // optional fields
     fdata.is_scalar = true;
     if data.contains_key("dims") {
         let idims = match data["dims"].as_array() {
             Some(v) => v,
-            None => {
-                return Err("[dims] in field is not an array".to_string());
-            }
+            None => return Err("[dims] in field is not an array".to_string()),
         };
         for d in idims {
             fdata.dims.push(match d.as_integer() {
                 Some(v) => v,
-                None => {
-                    return Err("[dims] array has non-integer values".to_string());
-                }
+                None => return Err("[dims] array has non-integer values".to_string()),
             });
             if fdata.dims.len() > 0 {
                 fdata.is_scalar = false;
@@ -205,10 +216,21 @@ fn parse_field(data: &Table) -> Result<FieldData, String> {
     if data.contains_key("desc") {
         fdata.desc = match data["desc"].as_str() {
             Some(v) => v.to_string(),
-            None => {
-                return Err("[desc] in field is not a string".to_string());
+            None => return Err("[desc] in field is not a string".to_string()),
+        }
+    }
+    if data.contains_key("generic") {
+        let gdata = match data["generic"].as_array() {
+            Some(v) => v,
+            None => return Err(format!("[{}][generic] is not an array", fdata.name)),
+        };
+        for val in gdata {
+            match val.as_str() {
+                Some(v) => fdata.generics.push(v.to_string()),
+                None => return Err(format!("[{}][generic] has non string elements", fdata.name)),
             }
         }
+        fdata.is_generic = true;
     }
     Ok(fdata)
 }

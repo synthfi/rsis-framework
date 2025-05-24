@@ -6,14 +6,25 @@
 {% endfor -%}
 
 {% for name, block in db.structs|items %}
+// {{block.desc}}
+{%- if block.is_generic %}
+pub struct {{name}}<{{block.gen_types|join(",")}}> {
+{% else %}
 pub struct {{name}} {
+{% endif -%}
 {%- for field in block.fields %}
+{%- if field.is_generic %}
+{%- if field.is_scalar %}
+    pub {{field.name}}: {{field.datatype}}<{{field.generics|join(',')}}>,
+{% endif -%}
+{% else %}
 {%- if field.is_scalar %}
     pub {{field.name}}: {{field.datatype}},
 {% elif field.dims|length == 1 %}
     pub {{field.name}}: SVector<{{field.datatype}}, {{field.dims[0]}}>,
 {% else %}
     pub {{field.name}}: SMatrix<{{field.datatype}}, {{field.dims[0]}}, {{field.dims[1]}}>,
+{% endif -%}
 {% endif -%}
 {% endfor -%}
 }

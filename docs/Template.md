@@ -43,3 +43,14 @@ Generics can be restricted to specific datatypes.
 [generic]
 T = {type="datatype", value="f64", options=["f32", "f64"], desc="signal type"}
 ```
+
+## Scenario
+In a scenario, a template block must have the arguments fully specified.
+
+```toml
+[[schedule]]
+type = "sine"
+args = ["f64"]
+name = "sinewave"
+freq = 5.0
+```

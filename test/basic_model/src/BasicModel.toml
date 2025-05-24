@@ -36,4 +36,5 @@ fields = [
 desc = "sensor parameters"
 fields = [
     {name="limits", type="f64", dims=[2,2], default=[[0.0, 1.0], [0.0, 1.0]], desc="[low, high] voltage limits for each voltage"}
+    #{name="messages", collection=["HashMap", "i32", "String"], desc="Messages with associated IDs"}
 ]

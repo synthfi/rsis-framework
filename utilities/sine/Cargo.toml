@@ -1,0 +1,7 @@
+[package]
+name = "rsis-sine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rsis_block = { path="../../block" }

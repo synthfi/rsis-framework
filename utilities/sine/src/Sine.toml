@@ -1,0 +1,43 @@
+# Sine Wave
+# - template over type T
+
+[template]
+name = "sine"
+desc = "Sine wave generator. Generic over input type"
+
+[types.Sine.generic.T]
+options = ["f64", "f32"]
+[types.Sine]
+desc = "sine wave generator"
+fields = [
+    {name="input",  type="SineParams", generic=["T"], tag="in"},
+    {name="output", type="SineOutputs", generic=["T"], default=0.0, tag="out"},
+    {name="data",   type="SineData", generic=["T"], tag="data"},
+]
+
+[types.SineParams.generic.T]
+options = ["f64", "f32"]
+[types.SineParams]
+desc = "sine wave parameters"
+fields = [
+    {name="amplitude", type="T", default=1.0, desc="Maximum amplitude"},
+    {name="frequency", type="T", default=1.0, desc="Frequency [Hz]"},
+    {name="offset",    type="T", default=0.0, desc="Phase offset"},
+    {name="bias",      type="T", default=0.0, desc="Bias offset"},
+]
+
+[types.SineData.generic.T]
+options = ["f64", "f32"]
+[types.SineData]
+desc = "sine wave data"
+fields = [
+    {name="phase", type="T", default=0.0, desc="phase of the signal"},
+]
+
+[types.SineOutputs.generic.T]
+options = ["f64", "f32"]
+[types.SineOutputs]
+desc = "sine wave outputs"
+fields = [
+    {name="output", type="T", default=0.0, desc="sine output"},
+]
